@@ -1,7 +1,23 @@
+//require .env so that i can use the .env file
+require('dotenv').config();
 const express = require('express');
+//require mongoose so that i can connect to my db
+const mongoose = require('mongoose');
 const app = express();
-const fruits = require('./models/fruits.js');
+//const fruits = require('./models/fruits.js');
+//we want to import the fruit model
+const Fruit = require ('./models/fruit')
 const jsxViewEngine = require('jsx-view-engine');
+
+//Global configuration
+const mongoURI = process.env.Mongo_URI;
+const db = mongoose.connection;
+
+//connect to Mongo
+mongoose.connect(mongoURI);
+mongoose.connection.once('open', () => {
+    console.log('connected to Mongo')
+})
 
 app.set('view engine', 'jsx');
 app.set('views', './views');
@@ -56,9 +72,15 @@ app.get('/', (req, res) => {
 });
 
 // I - INDEX - dsiplays a list of all fruits
-app.get('/fruits/', (req, res) => {
+app.get('/fruits/', async (req, res) => {
+    try {
+        const foundFruits = await Fruit.find({}) 
+       res.status(200).render('Index', {fruits: foundFruits});
+
+    } catch (err) {
+        res.status(400).send(err);
+    }
     // res.send(fruits);
-    res.render('Index', {fruits: fruits});
 });
 
 
@@ -69,25 +91,37 @@ app.get('/fruits/new', (req, res) => {
 
 
 // C - CREATE - update our data store
-app.post('/fruits', (req, res) => {
+app.post('/fruits',async (req, res) => {
     if(req.body.readyToEat === 'on') { //if checked, req.body.readyToEat is set to 'on'
         req.body.readyToEat = true;
     } else {  //if not checked, req.body.readyToEat is undefined
         req.body.readyToEat = false;
     }
-    fruits.push(req.body);
+    try {
+        const createdFruit = await Fruit.create(req.body);
+        res.status(200).redirect('/fruits');
+    } catch (err) {
+        res.status(400).send(err);
+}
+    //fruits.push(req.body);
     // console.log(fruits);
     // console.log(req.body)
     // res.send('data received');
-    res.redirect('/fruits'); // send user back to /fruits
+    //***we will add this back in later ***//
+    //res.redirect('/fruits'); // send user back to /fruits
 })
 
 // S - SHOW - show route displays details of an individual fruit
-app.get('/fruits/:indexOfFruitsArray', (req, res) => {
+app.get('/fruits/:id', async (req, res) => {
+    
     // res.send(fruits[req.params.indexOfFruitsArray]);
-    res.render('Show', {// second parameter must be an object
-        fruit: fruits[req.params.indexOfFruitsArray]
-    });
+    try { 
+        const foundFruit = await Fruit.findById(req.params.id)
+        res.render('Show',{fruit:foundFruit})
+    } catch (err) {
+        res.status(400).send(err);
+    }
+   
 })
 
 app.listen(3000, () => {
